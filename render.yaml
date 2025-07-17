@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: evidence-collection-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: SPREADSHEET_ID
+        sync: false
+      - key: DOCUMENT_ID
+        sync: false
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+    disk:
+      name: evidence-data
+      mountPath: /app/data
+      sizeGB: 1
+    autoDeploy: true
+    branch: main
+    rootDir: .
+    runtime: python3
+    numInstances: 1
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
