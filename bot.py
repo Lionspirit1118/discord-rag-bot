@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 # Bot configuration
 intents = discord.Intents.default()
 # Only enable message content intent if needed - this requires enabling in Discord Developer Portal
-intents.message_content = True  # Comment out to avoid privileged intent error
+# intents.message_content = True  # Comment out to avoid privileged intent error
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # OpenAI configuration
@@ -104,6 +104,7 @@ class EvidenceCollectionBot:
                     self.credentials = Credentials.from_service_account_info(
                         credentials_info, scopes=self.scopes
                     )
+                    logger.info(f"Using service account: {credentials_info.get('client_email', 'Unknown')}")
                 except json.JSONDecodeError as e:
                     logger.warning(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS: {e}")
                     logger.warning("Google API features will be disabled.")
@@ -116,6 +117,7 @@ class EvidenceCollectionBot:
                     self.credentials = Credentials.from_service_account_file(
                         credentials_path, scopes=self.scopes
                     )
+                    logger.info(f"Using service account from file: {credentials_path}")
                 else:
                     logger.warning("No Google credentials found. Google API features will be disabled.")
                     self.credentials = None
@@ -175,11 +177,29 @@ class EvidenceCollectionBot:
             List of submission dictionaries
         """
         if not self.credentials:
+            logger.error("No Google credentials available")
             return []
             
         try:
+            logger.info(f"Opening spreadsheet with ID: {self.spreadsheet_id}")
             spreadsheet = self.sheets_client.open_by_key(self.spreadsheet_id)
-            worksheet = spreadsheet.worksheet('Responses')
+            
+            # Log all available worksheets
+            worksheets = spreadsheet.worksheets()
+            worksheet_names = [ws.title for ws in worksheets]
+            logger.info(f"Available worksheets: {worksheet_names}")
+            
+            # Try to find the correct worksheet
+            worksheet = None
+            for ws in worksheets:
+                if 'Responses' in ws.title:
+                    worksheet = ws
+                    logger.info(f"Using worksheet: {ws.title}")
+                    break
+            
+            if not worksheet:
+                logger.error(f"No worksheet containing 'Responses' found. Available: {worksheet_names}")
+                return []
             
             # Get all rows
             all_rows = worksheet.get_all_values()
