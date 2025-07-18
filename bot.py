@@ -104,7 +104,6 @@ class EvidenceCollectionBot:
                     self.credentials = Credentials.from_service_account_info(
                         credentials_info, scopes=self.scopes
                     )
-                    logger.info(f"Using service account: {credentials_info.get('client_email', 'Unknown')}")
                 except json.JSONDecodeError as e:
                     logger.warning(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS: {e}")
                     logger.warning("Google API features will be disabled.")
@@ -117,7 +116,6 @@ class EvidenceCollectionBot:
                     self.credentials = Credentials.from_service_account_file(
                         credentials_path, scopes=self.scopes
                     )
-                    logger.info(f"Using service account from file: {credentials_path}")
                 else:
                     logger.warning("No Google credentials found. Google API features will be disabled.")
                     self.credentials = None
@@ -177,28 +175,36 @@ class EvidenceCollectionBot:
             List of submission dictionaries
         """
         if not self.credentials:
-            logger.error("No Google credentials available")
             return []
             
         try:
-            logger.info(f"Opening spreadsheet with ID: {self.spreadsheet_id}")
             spreadsheet = self.sheets_client.open_by_key(self.spreadsheet_id)
             
-            # Log all available worksheets
-            worksheets = spreadsheet.worksheets()
-            worksheet_names = [ws.title for ws in worksheets]
-            logger.info(f"Available worksheets: {worksheet_names}")
-            
-            # Try to find the correct worksheet
+            # Try different possible worksheet names
             worksheet = None
-            for ws in worksheets:
-                if 'Responses' in ws.title:
-                    worksheet = ws
-                    logger.info(f"Using worksheet: {ws.title}")
-                    break
+            possible_names = ['Responses', 'Form Responses 1', 'Form responses 1', 'フォームの回答 1']
             
+            # First try to get all worksheets and find one containing our data
+            try:
+                worksheets = spreadsheet.worksheets()
+                for ws in worksheets:
+                    if any(name in ws.title for name in ['Responses', 'Form', 'フォーム', '回答']):
+                        worksheet = ws
+                        break
+                
+                # If still no worksheet found, use the first one
+                if not worksheet and worksheets:
+                    worksheet = worksheets[0]
+                    
+            except Exception:
+                # Fallback: try the default name
+                try:
+                    worksheet = spreadsheet.worksheet('Responses')
+                except Exception:
+                    pass
+            
+            # Safety check
             if not worksheet:
-                logger.error(f"No worksheet containing 'Responses' found. Available: {worksheet_names}")
                 return []
             
             # Get all rows
