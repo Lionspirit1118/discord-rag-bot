@@ -85,6 +85,10 @@ class EvidenceCollectionBot:
             # For Render deployment, credentials can be set as environment variable
             credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
             
+            logger.info(f"GOOGLE_APPLICATION_CREDENTIALS environment variable {'found' if credentials_json else 'not found'}")
+            if credentials_json:
+                logger.info(f"Credentials JSON length: {len(credentials_json)} characters")
+            
             if credentials_json:
                 try:
                     # Parse JSON string from environment variable
@@ -99,6 +103,10 @@ class EvidenceCollectionBot:
                         logger.warning("Google API features will be disabled.")
                         self.credentials = None
                         return
+                    
+                    # Log the service account email for debugging
+                    logger.info(f"Loading Google credentials for service account: {credentials_info.get('client_email')}")
+                    logger.info(f"Project ID: {credentials_info.get('project_id')}")
                     
                     self.credentials = Credentials.from_service_account_info(
                         credentials_info, scopes=self.scopes
@@ -177,7 +185,10 @@ class EvidenceCollectionBot:
             return []
             
         try:
+            logger.info(f"Attempting to open spreadsheet with ID: {self.spreadsheet_id}")
+            logger.info(f"Sheets client initialized: {hasattr(self, 'sheets_client')}")
             spreadsheet = self.sheets_client.open_by_key(self.spreadsheet_id)
+            logger.info(f"Successfully opened spreadsheet: {spreadsheet.title}")
             
             # Try different possible worksheet names
             worksheet = None
@@ -226,6 +237,8 @@ class EvidenceCollectionBot:
             
         except Exception as error:
             logger.error(f'Error getting latest submissions: {error}')
+            logger.error(f'Spreadsheet ID: {self.spreadsheet_id}')
+            logger.error(f'Has credentials: {self.credentials is not None}')
             return []
     
     def extract_submission_data(self, row_data: List[str]) -> Optional[Dict[str, Any]]:
