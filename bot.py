@@ -105,8 +105,10 @@ class EvidenceCollectionBot:
                         return
                     
                     # Log the service account email for debugging
-                    logger.info(f"Loading Google credentials for service account: {credentials_info.get('client_email')}")
-                    logger.info(f"Project ID: {credentials_info.get('project_id')}")
+                    service_email = credentials_info.get('client_email')
+                    project_id = credentials_info.get('project_id')
+                    logger.info(f"🔑 Using service account: {service_email}")
+                    logger.info(f"📁 Project ID: {project_id}")
                     
                     self.credentials = Credentials.from_service_account_info(
                         credentials_info, scopes=self.scopes
