@@ -6,7 +6,7 @@ This bot combines the functionality of the Flask web service and Google Apps Scr
 into a unified Discord bot that can:
 - Handle evidence collection and processing
 - Integrate with Google Sheets and Docs
-- Provide OpenAI GPT-4.1 mini powered Q&A
+- Provide OpenAI GPT-4o-mini powered Q&A
 - Deploy on Render as a persistent bot
 
 Required environment variables:
@@ -45,7 +45,8 @@ logger = logging.getLogger(__name__)
 
 # Bot configuration
 intents = discord.Intents.default()
-intents.message_content = True
+# Only enable message content intent if needed - this requires enabling in Discord Developer Portal
+# intents.message_content = True  # Comment out to avoid privileged intent error
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # OpenAI configuration
@@ -86,11 +87,28 @@ class EvidenceCollectionBot:
             credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
             
             if credentials_json:
-                # Parse JSON string from environment variable
-                credentials_info = json.loads(credentials_json)
-                self.credentials = Credentials.from_service_account_info(
-                    credentials_info, scopes=self.scopes
-                )
+                try:
+                    # Parse JSON string from environment variable
+                    credentials_info = json.loads(credentials_json)
+                    
+                    # Validate required fields
+                    required_fields = ['client_email', 'token_uri', 'private_key', 'project_id']
+                    missing_fields = [field for field in required_fields if field not in credentials_info]
+                    
+                    if missing_fields:
+                        logger.warning(f"Google credentials missing required fields: {missing_fields}")
+                        logger.warning("Google API features will be disabled.")
+                        self.credentials = None
+                        return
+                    
+                    self.credentials = Credentials.from_service_account_info(
+                        credentials_info, scopes=self.scopes
+                    )
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS: {e}")
+                    logger.warning("Google API features will be disabled.")
+                    self.credentials = None
+                    return
             else:
                 # Fallback to file-based credentials for local development
                 credentials_path = 'credentials.json'
@@ -103,6 +121,7 @@ class EvidenceCollectionBot:
                     self.credentials = None
                     return
             
+            # Initialize Google API services
             self.sheets_client = gspread.authorize(self.credentials)
             self.docs_service = build('docs', 'v1', credentials=self.credentials)
             self.translate_service = build('translate', 'v2', credentials=self.credentials)
@@ -110,7 +129,8 @@ class EvidenceCollectionBot:
             logger.info("Google APIs initialized successfully")
             
         except Exception as error:
-            logger.error(f"Failed to initialize Google APIs: {error}")
+            logger.warning(f"Failed to initialize Google APIs: {error}")
+            logger.warning("Google API features will be disabled.")
             self.credentials = None
     
     def translate_text(self, text: str, source_lang: str = 'ja', target_lang: str = 'en') -> str:
@@ -367,6 +387,15 @@ async def on_message(message):
 
 
 # Bot commands
+@bot.command(name='ping')
+async def ping(ctx):
+    """
+    Simple ping command to test bot connectivity
+    Usage: !ping
+    """
+    await ctx.send(f"🏓 Pong! Latency: {round(bot.latency * 1000)}ms")
+
+
 @bot.command(name='ask')
 async def ask_question(ctx, *, question):
     """
@@ -468,8 +497,14 @@ async def help_command(ctx):
     )
     
     embed.add_field(
+        name="!ping",
+        value="Test bot connectivity and latency",
+        inline=False
+    )
+    
+    embed.add_field(
         name="!ask <question>",
-        value="Ask a question to OpenAI GPT-3.5",
+        value="Ask a question to OpenAI GPT-4o-mini",
         inline=False
     )
     
