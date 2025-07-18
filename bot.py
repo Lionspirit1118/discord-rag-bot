@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 # Bot configuration
 intents = discord.Intents.default()
 # Only enable message content intent if needed - this requires enabling in Discord Developer Portal
-# intents.message_content = True  # Comment out to avoid privileged intent error
+intents.message_content = True  # Comment out to avoid privileged intent error
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # OpenAI configuration
