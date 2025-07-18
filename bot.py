@@ -6,7 +6,7 @@ This bot combines the functionality of the Flask web service and Google Apps Scr
 into a unified Discord bot that can:
 - Handle evidence collection and processing
 - Integrate with Google Sheets and Docs
-- Provide OpenAI GPT-3.5 powered Q&A
+- Provide OpenAI GPT-4.1 mini powered Q&A
 - Deploy on Render as a persistent bot
 
 Required environment variables:
@@ -245,7 +245,7 @@ class EvidenceCollectionBot:
             
             # Call OpenAI API
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4-0125-preview",  # Updated to GPT-4.1 mini
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
