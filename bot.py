@@ -26,7 +26,7 @@ from typing import Dict, List, Optional, Any
 
 import discord
 from discord.ext import commands
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 import gspread
 from google.oauth2.service_account import Credentials
@@ -49,7 +49,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # OpenAI configuration
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 
 class EvidenceCollectionBot:
@@ -224,7 +224,7 @@ class EvidenceCollectionBot:
     
     async def ask_gpt(self, question: str, context: str = "") -> str:
         """
-        Ask OpenAI GPT-3.5 a question with optional context
+        Ask OpenAI GPT-4o-mini a question with optional context
         
         Args:
             question: The question to ask
@@ -244,8 +244,8 @@ class EvidenceCollectionBot:
                 user_prompt = f"Context: {context}\n\nQuestion: {question}"
             
             # Call OpenAI API
-            response = openai.ChatCompletion.create(
-                model="gpt-4-0125-preview",  # Updated to GPT-4.1 mini
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",  # Updated to GPT-4.1 mini
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -519,7 +519,7 @@ async def bot_status(ctx):
     
     embed.add_field(
         name="OpenAI API",
-        value="✅ Configured" if openai.api_key else "❌ Not configured",
+        value="✅ Configured" if openai_client.api_key else "❌ Not configured",
         inline=True
     )
     
@@ -566,7 +566,7 @@ if __name__ == '__main__':
         logger.error("DISCORD_TOKEN not found in environment variables")
         exit(1)
     
-    if not openai.api_key:
+    if not openai_client.api_key:
         logger.error("OPENAI_API_KEY not found in environment variables")
         exit(1)
     
