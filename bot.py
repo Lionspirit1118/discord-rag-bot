@@ -197,14 +197,19 @@ class EvidenceCollectionBot:
             # First try to get all worksheets and find one containing our data
             try:
                 worksheets = spreadsheet.worksheets()
+                logger.info(f"Found worksheets: {[ws.title for ws in worksheets]}")
+                
                 for ws in worksheets:
-                    if any(name in ws.title for name in ['Responses', 'Form', 'フォーム', '回答']):
+                    # Look for common form response worksheet names
+                    if any(name.lower() in ws.title.lower() for name in ['responses', 'form_responses', 'form responses', 'form', 'フォーム', '回答']):
                         worksheet = ws
+                        logger.info(f"Selected worksheet: {ws.title}")
                         break
                 
                 # If still no worksheet found, use the first one
                 if not worksheet and worksheets:
                     worksheet = worksheets[0]
+                    logger.info(f"Using first worksheet: {worksheet.title}")
                     
             except Exception:
                 # Fallback: try the default name
@@ -237,6 +242,7 @@ class EvidenceCollectionBot:
             
         except Exception as error:
             logger.error(f'Error getting latest submissions: {error}')
+            logger.error(f'Error type: {type(error).__name__}')
             logger.error(f'Spreadsheet ID: {self.spreadsheet_id}')
             logger.error(f'Has credentials: {self.credentials is not None}')
             return []
@@ -252,26 +258,33 @@ class EvidenceCollectionBot:
             Structured submission data dictionary
         """
         try:
-            if len(row_data) < 11:
+            # Need at least 6 basic columns
+            if len(row_data) < 6:
                 logger.warning(f'Insufficient data in row: {len(row_data)} columns')
                 return None
             
+            logger.info(f'Processing row with {len(row_data)} columns')
+            
+            # Safe column access function
+            def get_column(index, default=''):
+                return row_data[index] if index < len(row_data) else default
+            
             # Parse tags
-            aff_tags = row_data[3].split(', ') if row_data[3] else []
-            neg_tags = row_data[4].split(', ') if row_data[4] else []
+            aff_tags = get_column(3).split(', ') if get_column(3) else []
+            neg_tags = get_column(4).split(', ') if get_column(4) else []
             
             submission_data = {
-                'timestamp': row_data[0],
-                'submitter': row_data[1],
-                'title': row_data[2],
+                'timestamp': get_column(0),
+                'submitter': get_column(1),
+                'title': get_column(2),
                 'aff_tags': aff_tags,
                 'neg_tags': neg_tags,
-                'source_url': row_data[5],
-                'update_date': row_data[6],
-                'eng_source': row_data[7],
-                'quote': row_data[8],
-                'attachment': row_data[9],
-                'remark': row_data[10]
+                'source_url': get_column(5),
+                'update_date': get_column(6),
+                'eng_source': get_column(7) or get_column(6),  # Use update_date if eng_source missing
+                'quote': get_column(7) if len(row_data) <= 8 else get_column(8),  # Adjust based on column count
+                'attachment': get_column(8) if len(row_data) <= 9 else get_column(9),
+                'remark': get_column(9) if len(row_data) <= 10 else get_column(10)
             }
             
             return submission_data
